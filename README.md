@@ -13,12 +13,14 @@ This repository contains the complete experimental pipeline demonstrating that m
 
 ```
 filterbank-fairness/
-├── 00_precompute_filterbank_fairness.py   # Pre-analysis: centroids, spread groups, filter density
-├── 01_exp1_bandcount_ablation.py          # Ablation: band count M ∈ {40, 64, 80, 128}
-├── 02_exp2_fmax_ablation.py               # Ablation: frequency ceiling f_max ∈ {4k, 8k, 11k} Hz
-├── 03_exp3_normalization_ablation.py      # Ablation: normalization ∈ {Slaney, HTK, Area}
-├── 04_exp4_fma_replication.py             # Cross-dataset replication on FMA-Small
-├── 05_exp5_saliency_probe.py              # Gradient saliency probe (paper Figure 2)
+├── 00_precompute_filterbank_fairness.py        # Pre-analysis: centroids, spread groups, filter density
+├── 01_exp1_bandcount_ablation.py               # Ablation: band count M ∈ {40, 64, 80, 128}
+├── 02_exp2_fmax_ablation.py                    # Ablation: frequency ceiling f_max ∈ {4k, 8k, 11k} Hz
+├── 03_exp3_normalization_ablation.py           # Ablation: normalization ∈ {Slaney, HTK, Area}
+├── 04_exp4_fma_replication.py                  # Cross-dataset replication on FMA-Small
+├── 05_exp5_saliency_probe.py                   # Gradient saliency probe (paper Figure 2)
+├── 06_supplementary_regression.py              # Supplementary: full OLS regression (Table S1)
+├── 07_supplementary_regression_reduced.py      # Supplementary: reduced model robustness check (Table S1)
 └── README.md
 ```
 
@@ -115,6 +117,40 @@ averaged over all clips of genre *g* and normalised to unit maximum for cross-*M
 
 ---
 
+### `06_supplementary_regression.py` — Supplementary: Full OLS Regression
+**GPU required:** No
+
+Fits the full OLS regression model linking per-genre classification accuracy to filterbank geometry variables across all 40 observations (10 genres × 4 *M* values) from Experiment 1. All predictors are standardised to zero mean and unit variance prior to fitting.
+
+```
+A_g(θ) = β₀ + β₁·D_g + β₂·σ_g + β₃·M + ε
+```
+
+Produces the coefficient table, standard errors, t-statistics, p-values, 95% confidence intervals, and VIF diagnostics. Detects and flags severe multicollinearity between *D*_g and *M* (VIF = 65.4 and 62.9 respectively), which motivates the reduced model in Program 07. Also generates partial regression plots and residual diagnostics.
+
+**Contribution to supplementary material:** Produces `supp_regression_table.tex` and the coefficient values reported in Table S1 (Page 1) of the supplementary material. The raw 40-observation dataset saved in `exp6_regression_results.json` populates Tables S2 and S3 (Page 2, Information for Reproducibility).
+
+**Outputs:** `exp6_regression_results.json`, `fig_06_01_partial_regression.png`, `fig_06_02_residuals.png` (saved to Google Drive)
+
+---
+
+### `07_supplementary_regression_reduced.py` — Supplementary: Reduced Model Robustness Check
+**GPU required:** No
+
+Fits the reduced OLS regression model dropping *M* as a predictor to address the severe multicollinearity identified in Program 06. Reads `exp6_regression_results.json` directly from Google Drive — no recomputation of spectrograms or models is needed.
+
+```
+A_g(θ) = β₀ + β₁·D_g + β₂·σ_g + ε
+```
+
+With *M* removed, VIF drops from 65.4 to 1.04 for *D*_g. The reduced model reveals that **spectral spread σ_g is the significant negative predictor of per-genre accuracy** (β = −0.077, *p* = 0.002) while *D*_g loses significance (*p* = 0.404). The direction of β₁ is consistent across both models (negative in both), confirming the sign is not a collinearity artifact. Produces a side-by-side LaTeX comparison table of full and reduced model coefficients.
+
+**Contribution to supplementary material:** Produces `supp_reduced_regression_table.tex` which is the source for the two-column comparison in Table S1 (Page 1) of the supplementary material. The reduced model result is the preferred specification and is cited in the main paper's Limitations section.
+
+**Outputs:** `exp7_reduced_regression_results.json` (saved to Google Drive)
+
+---
+
 ## Datasets
 
 | Dataset | Size | Genres | Format | Source |
@@ -154,15 +190,16 @@ Programs must be run in the following sequence due to data dependencies:
 
 ```
 00  →  01  →  02  →  03  →  05
-                ↘
-                04
+         ↘                        
+          04        01  →  06  →  07
 ```
 
 Specifically:
 - **00** must run first — produces `precompute_genre_centroids.json` and `precompute_filter_density.json` required by 01, 02, 03, 04.
 - **01** must run before **05** — produces `exp1_best_model_M40.pth` and `exp1_best_model_M128.pth` required by the saliency probe.
+- **01** must run before **06** — produces `exp1_results.json` required by the regression.
+- **06** must run before **07** — produces `exp6_regression_results.json` required by the reduced model.
 - **02**, **03**, **04** can run independently after 00.
-- **05** requires 01 to be complete.
 
 ---
 
@@ -205,6 +242,7 @@ FMA metadata is downloaded automatically at runtime.
 | `scikit-learn` | Stratified cross-validation, label encoding |
 | `scipy` | Jensen-Shannon divergence, Spearman correlation |
 | `matplotlib` | Figure generation |
+| `statsmodels` | OLS regression, VIF diagnostics (Programs 06, 07) |
 | `tqdm` | Progress bars |
 | `requests` | FMA metadata download (Program 04) |
 
@@ -231,4 +269,3 @@ Number of mel filter centres within the spectral support of genre g.
 σ_g = sqrt( Σ_n f_n² S_g(n) / Σ_n S_g(n)  −  f̄_g² )
 ```
 ```
-
