@@ -3,7 +3,7 @@
 Reproducibility code for the paper:
 
 > **Mel-Filterbank Design as a Fairness Probe for Music Genre Classifiers**
-> Sridharan Sankaran, IEEE Signal Processing Letters, 2026
+> Sridharan Sankaran, 2026
 
 This repository contains the complete experimental pipeline demonstrating that mel-filterbank hyperparameters — band count *M*, frequency ceiling *f*_max, and normalization scheme — constitute an unchecked fairness variable in music genre classification. Genres with wide spectral spread (rock, disco, hip-hop, reggae, pop) are systematically disadvantaged relative to spectrally concentrated genres (classical, blues, jazz, metal, country) under standard filterbank configurations. The inter-group accuracy gap reaches **22.7 percentage points** at *M* = 80, *f*_max = 8 kHz, and replicates in direction on FMA-Small.
 
